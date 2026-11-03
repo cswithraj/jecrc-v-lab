@@ -3,7 +3,9 @@
 // soft "isActive"/"status" flags instead of hard deletes for academic records.
 
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  // "rhel-openssl-3.0.x" is the engine for serverless hosts (Netlify/AWS Lambda).
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
 }
 
 datasource db {

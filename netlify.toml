@@ -1,0 +1,16 @@
+# Netlify deployment (free tier). Code execution must use Judge0 (EXECUTION_PROVIDER=judge0) because
+# Netlify cannot run the built-in sandbox runner. See docs/NETLIFY.md.
+[build]
+  command = "node scripts/netlify-build.mjs"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "22"
+  NEXT_TELEMETRY_DISABLED = "1"
+
+[functions]
+  # PDF export reads font metric files at runtime.
+  included_files = ["node_modules/pdfkit/js/data/**"]
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"

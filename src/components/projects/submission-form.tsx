@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button, Input, Textarea, Select, Field, Alert } from "@/components/ui";
 
-export function SubmissionForm({ teamId, milestones, maxMb }: { teamId: string; milestones: { id: string; title: string }[]; maxMb: number }) {
+export function SubmissionForm({ teamId, milestones, maxMb, uploads = true }: { teamId: string; milestones: { id: string; title: string }[]; maxMb: number; uploads?: boolean }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ tone: "success" | "error"; text: string } | null>(null);
@@ -25,7 +25,8 @@ export function SubmissionForm({ teamId, milestones, maxMb }: { teamId: string; 
       <Field label="Type" htmlFor="ps-k"><Select id="ps-k" name="kind" defaultValue="REPO"><option value="REPO">Code repository</option><option value="DOCUMENT">Report / document</option><option value="DEMO">Demo video or deployed app</option><option value="NOTE">Progress note</option></Select></Field>
       <Field label="Milestone" htmlFor="ps-m"><Select id="ps-m" name="milestoneId" defaultValue=""><option value="">Final submission</option>{milestones.map((m) => <option key={m.id} value={m.id}>{m.title}</option>)}</Select></Field>
       <Field label="Link" htmlFor="ps-u" className="md:col-span-2"><Input id="ps-u" name="url" type="url" placeholder="https://github.com/…" /></Field>
-      <Field label="File (optional)" htmlFor="ps-f" hint={`PDF, ZIP, DOCX, PPTX, XLSX, images or text, up to ${maxMb} MB`}><Input id="ps-f" name="file" type="file" accept=".pdf,.zip,.docx,.pptx,.xlsx,.png,.jpg,.jpeg,.txt,.md" /></Field>
+      {uploads ? <Field label="File (optional)" htmlFor="ps-f" hint={`PDF, ZIP, DOCX, PPTX, XLSX, images or text, up to ${maxMb} MB`}><Input id="ps-f" name="file" type="file" accept=".pdf,.zip,.docx,.pptx,.xlsx,.png,.jpg,.jpeg,.txt,.md" /></Field>
+        : <p className="text-sm text-muted-foreground">File uploads are turned off on this server; share a link to your report or repository instead.</p>}
       <Field label="Notes" htmlFor="ps-n"><Textarea id="ps-n" name="notes" rows={3} /></Field>
       <div className="md:col-span-2 flex items-center gap-3"><Button type="submit" loading={busy}>Submit</Button>{msg && <Alert tone={msg.tone} className="flex-1">{msg.text}</Alert>}</div>
     </form>

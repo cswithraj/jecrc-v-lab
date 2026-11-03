@@ -31,6 +31,10 @@ Project owner: Rajkumar Sharma, Assistant Professor, Department of Computer Appl
 
 Use `DOMAIN=vlab.your-college.edu` before `bash` (with the domain's DNS pointing at the server) for your own address, and `DEMO=false` for a clean install without demo accounts.
 
+### Free option: Netlify
+
+No server? Deploy free on Netlify + Neon (database) + Judge0 on RapidAPI (code running). Good for demos and small trials: about 50 code runs a day and no file uploads. Step-by-step guide: [docs/NETLIFY.md](docs/NETLIFY.md).
+
 ## Quick start with Docker (recommended)
 
 Requirements: Docker 24+ with Compose.
@@ -75,6 +79,7 @@ npm run dev                     # terminal 2: app on http://localhost:3000
 - [ER diagram](docs/ER-DIAGRAM.md): data model and constraints
 - [API reference](docs/API.md)
 - [Deployment](docs/DEPLOYMENT.md): Docker, HTTPS, backups, scaling, hardening checklist
+- [Free Netlify deploy](docs/NETLIFY.md): Netlify + Neon + Judge0, free-tier limits
 - [Testing](docs/TESTING.md): what is tested and how to run it
 - [Roadmap](docs/ROADMAP.md): phase status and known limitations
 

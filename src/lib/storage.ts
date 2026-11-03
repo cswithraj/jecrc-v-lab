@@ -12,8 +12,11 @@ const ROOT = path.resolve(process.env.STORAGE_DIR || "./storage");
 export const MAX_UPLOAD_BYTES = Number(process.env.MAX_UPLOAD_MB || 20) * 1024 * 1024;
 export const ALLOWED_EXT = [".pdf", ".zip", ".docx", ".pptx", ".xlsx", ".png", ".jpg", ".jpeg", ".txt", ".md"];
 
+export const uploadsEnabled = () => (process.env.STORAGE_DRIVER || "local") === "local";
+
 function assertDriver() {
   const d = process.env.STORAGE_DRIVER || "local";
+  if (d === "none") throw new ApiError(400, "File uploads are turned off on this server. Share a link (for example Google Drive or GitHub) instead.");
   if (d !== "local") throw new ApiError(503, `Storage driver "${d}" is not implemented; set STORAGE_DRIVER=local and mount a persistent volume at STORAGE_DIR.`);
 }
 

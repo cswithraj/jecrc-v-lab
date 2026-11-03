@@ -7,6 +7,7 @@ import { ActionButton } from "@/components/common/action-button";
 import { SubmissionForm } from "@/components/projects/submission-form";
 import { EvaluateForm } from "@/components/projects/evaluate-form";
 import { fmtDate, fmtDateTime } from "@/lib/utils";
+import { uploadsEnabled } from "@/lib/storage";
 
 export const metadata = { title: "Project" };
 const KIND: Record<string, string> = { REPO: "Repository", DOCUMENT: "Document", DEMO: "Demo", NOTE: "Note" };
@@ -57,7 +58,7 @@ export default async function TeamPage({ params }: { params: Promise<{ id: strin
           {member && team.status !== "EVALUATED" && (
             <Card>
               <CardHeader><CardTitle>Add a submission</CardTitle><CardDescription>Share a repository link, upload your report, or post a progress note.</CardDescription></CardHeader>
-              <CardContent><SubmissionForm teamId={team.id} milestones={p.milestones.map((m) => ({ id: m.id, title: m.title }))} maxMb={Number(process.env.MAX_UPLOAD_MB || 20)} /></CardContent>
+              <CardContent><SubmissionForm teamId={team.id} milestones={p.milestones.map((m) => ({ id: m.id, title: m.title }))} maxMb={Number(process.env.MAX_UPLOAD_MB || 20)} uploads={uploadsEnabled()} /></CardContent>
             </Card>
           )}
         </div>
