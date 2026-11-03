@@ -20,6 +20,17 @@ Project owner: Rajkumar Sharma, Assistant Professor, Department of Computer Appl
 | Faculty tools | Dashboard, class roster and viva marks, live practical monitor, review queue, question bank with CSV/Excel import/export and version history, experiment editor with live flowchart preview and reference-solution check, reports. |
 | Administration | Users (create, import, reset password, deactivate), academic structure (departments, courses, sessions, batches, classes), laboratories and credits, faculty assignment, grading policy, branding and exam rules, audit log. |
 
+## Get a public link (about 15 minutes)
+
+1. Rent a small Linux server: Ubuntu 24.04, 2+ vCPU, 4 GB RAM (for example Hetzner CX22, DigitalOcean, AWS Lightsail or a university VM).
+2. Open the server's web console (or SSH) and run:
+   ```bash
+   curl -fsSL https://raw.githubusercontent.com/cswithraj/jecrc-v-lab/main/deploy/install.sh | sudo bash
+   ```
+3. Wait for the build to finish, then open the printed link, e.g. `https://203-0-113-5.sslip.io`. HTTPS is set up automatically.
+
+Use `DOMAIN=vlab.your-college.edu` before `bash` (with the domain's DNS pointing at the server) for your own address, and `DEMO=false` for a clean install without demo accounts.
+
 ## Quick start with Docker (recommended)
 
 Requirements: Docker 24+ with Compose.

@@ -1,0 +1,17 @@
+# Adds automatic HTTPS (Let's Encrypt via Caddy) in front of the stack.
+# Used by deploy/install.sh. SITE_ADDRESS is a domain pointing at this server, e.g. vlab.example.edu
+# or <ip-with-dashes>.sslip.io when you have no domain yet.
+services:
+  caddy:
+    image: caddy:2.8-alpine
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:?set SITE_ADDRESS}
+    command: ["caddy", "reverse-proxy", "--from", "${SITE_ADDRESS}", "--to", "nginx:80"]
+    volumes: [caddy_data:/data, caddy_config:/config]
+    depends_on: [nginx]
+    networks: [frontend]
+volumes:
+  caddy_data: {}
+  caddy_config: {}
