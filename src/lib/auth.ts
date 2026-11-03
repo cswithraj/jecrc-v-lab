@@ -11,7 +11,7 @@ const TTL_MS = Number(process.env.SESSION_TTL_HOURS || 12) * 3600_000;
 const MAX_FAILED = 5;
 const LOCK_MINUTES = 15;
 
-const hashToken = (t: string) => createHash("sha256").update(t).digest("hex");
+export const hashToken = (t: string) => createHash("sha256").update(t).digest("hex");
 
 export async function hashPassword(pw: string) { return bcrypt.hash(pw, 12); }
 export async function verifyPassword(pw: string, hash: string) { return bcrypt.compare(pw, hash); }
