@@ -13,8 +13,8 @@ export type FieldSpec = {
  * Small generic form: renders fields, sends JSON (numbers/booleans typed; empty optional values sent as null),
  * shows API errors, refreshes server data on success. `successText` may include {field} placeholders from the response.
  */
-export function EntityForm({ fields, url, method = "POST", initial = {}, submitLabel = "Save", successText = "Saved.", resetOnSuccess = false, columns = 2, extra }: {
-  fields: FieldSpec[]; url: string; method?: "POST" | "PUT" | "PATCH"; initial?: Record<string, unknown>; submitLabel?: string; successText?: string; resetOnSuccess?: boolean; columns?: 1 | 2 | 3; extra?: Record<string, unknown>;
+export function EntityForm({ fields, url, method = "POST", initial = {}, submitLabel = "Save", successText = "Saved.", resetOnSuccess = false, columns = 2, extra, nestUnder }: {
+  fields: FieldSpec[]; url: string; method?: "POST" | "PUT" | "PATCH"; initial?: Record<string, unknown>; submitLabel?: string; successText?: string; resetOnSuccess?: boolean; columns?: 1 | 2 | 3; extra?: Record<string, unknown>; nestUnder?: string;
 }) {
   const router = useRouter();
   const init = () => Object.fromEntries(fields.map((f) => [f.name, initial[f.name] ?? (f.type === "checkbox" ? false : "")]));
@@ -24,13 +24,14 @@ export function EntityForm({ fields, url, method = "POST", initial = {}, submitL
 
   async function submit(e: React.FormEvent) {
     e.preventDefault(); setBusy(true); setMsg(null);
-    const body: Record<string, unknown> = { ...extra };
+    const vals: Record<string, unknown> = {};
     for (const f of fields) {
       const x = v[f.name];
-      if (f.type === "checkbox") body[f.name] = Boolean(x);
-      else if (f.type === "number") body[f.name] = x === "" || x == null ? null : Number(x);
-      else body[f.name] = x === "" ? (f.required ? "" : null) : x;
+      if (f.type === "checkbox") vals[f.name] = Boolean(x);
+      else if (f.type === "number") vals[f.name] = x === "" || x == null ? null : Number(x);
+      else vals[f.name] = x === "" ? (f.required ? "" : null) : x;
     }
+    const body = nestUnder ? { ...extra, [nestUnder]: vals } : { ...extra, ...vals };
     const r = await fetch(url, { method, headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
     const d = await r.json().catch(() => ({}));
     setBusy(false);
