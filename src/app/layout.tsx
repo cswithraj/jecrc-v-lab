@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
-import { Inter, Cormorant_Garamond, JetBrains_Mono } from "next/font/google";
+// Self-hosted fonts (no runtime call to Google Fonts; works offline / behind campus proxies)
+import "@fontsource-variable/inter";
+import "@fontsource-variable/jetbrains-mono";
+import "@fontsource/cormorant-garamond/500.css";
+import "@fontsource/cormorant-garamond/600.css";
+import "@fontsource/cormorant-garamond/700.css";
 import { getInstitution } from "@/lib/settings";
 import "./globals.css";
 
-const sans = Inter({ subsets: ["latin"], variable: "--font-sans", display: "swap" });
-const display = Cormorant_Garamond({ subsets: ["latin"], weight: ["500", "600", "700"], variable: "--font-display", display: "swap" });
-const mono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mono", display: "swap" });
 
 export async function generateMetadata(): Promise<Metadata> {
   const inst = await getInstitution();
@@ -17,7 +19,7 @@ const themeScript = `(function(){try{var t=localStorage.getItem('vlab-theme');if
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning className={`${sans.variable} ${display.variable} ${mono.variable}`}>
+    <html lang="en" suppressHydrationWarning>
       <head><script dangerouslySetInnerHTML={{ __html: themeScript }} /></head>
       <body className="min-h-screen font-sans">{children}</body>
     </html>

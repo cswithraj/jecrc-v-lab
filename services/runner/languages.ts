@@ -11,8 +11,8 @@ export interface LanguageSpec {
 }
 
 export const LANGUAGES: Record<string, LanguageSpec> = {
-  C: { file: "main.c", compile: ["gcc", "-O2", "-std=c17", "-Wall", "-o", "main", "main.c", "-lm"], run: ["./main"] },
-  CPP: { file: "main.cpp", compile: ["g++", "-O2", "-std=c++17", "-Wall", "-o", "main", "main.cpp"], run: ["./main"] },
+  C: { file: "main.c", compile: ["gcc", "-O2", "-std=c17", "-Wall", "-Wno-unused-result", "-o", "main", "main.c", "-lm"], run: ["./main"] },
+  CPP: { file: "main.cpp", compile: ["g++", "-O2", "-std=c++17", "-Wall", "-Wno-unused-result", "-o", "main", "main.cpp"], run: ["./main"] },
   JAVA: { file: "Main.java", compile: ["javac", "-J-Xmx256m", "Main.java"], run: ["java", "-Xmx{MEM}k", "-Xss64m", "-XX:+UseSerialGC", "-XX:TieredStopAtLevel=1", "Main"], memoryMode: "jvm" },
   PYTHON: { file: "main.py", run: ["python3", "-I", "-S", "main.py"] },
   JAVASCRIPT: { file: "main.js", run: ["node", "--max-old-space-size=128", "main.js"], memoryMode: "jvm" },

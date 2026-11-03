@@ -5,6 +5,9 @@
 /* JECRC University theme — crest red on white, black serif wordmark. */
 @layer base {
   :root {
+    --font-sans: "Inter Variable";
+    --font-display: "Cormorant Garamond";
+    --font-mono: "JetBrains Mono Variable";
     --background: 0 0% 99%;
     --foreground: 0 0% 9%;
     --card: 0 0% 100%;
