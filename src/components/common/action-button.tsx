@@ -7,7 +7,7 @@ import { Button, type ButtonProps } from "@/components/ui";
  * Button that POSTs to an API endpoint, then refreshes server data.
  * `confirm` asks before acting; `reasonPrompt` asks for a mandatory reason (sent as { reason }).
  */
-export function ActionButton({ url, method = "POST", body, confirm, reasonPrompt, children, onDone, ...props }: { url: string; method?: string; body?: unknown; confirm?: string; reasonPrompt?: string; onDone?: (data: unknown) => void } & Omit<ButtonProps, "onClick">) {
+export function ActionButton({ url, method = "POST", body, confirm, reasonPrompt, children, onDone, redirectTo, ...props }: { url: string; method?: string; body?: unknown; confirm?: string; reasonPrompt?: string; onDone?: (data: unknown) => void; redirectTo?: string } & Omit<ButtonProps, "onClick">) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
@@ -25,7 +25,7 @@ export function ActionButton({ url, method = "POST", body, confirm, reasonPrompt
       const data = await res.json().catch(() => ({}));
       if (!res.ok) { setMsg({ ok: false, text: data.error ?? `Failed (${res.status})` }); return; }
       onDone?.(data);
-      router.refresh();
+      if (redirectTo) router.push(redirectTo); else router.refresh();
     } catch { setMsg({ ok: false, text: "Network error. Try again." }); }
     finally { setBusy(false); }
   }
