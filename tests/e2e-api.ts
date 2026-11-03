@@ -88,6 +88,29 @@ class Client {
   // Marks hidden until release
   check("Marks hidden before release", own.data?.evaluation?.totalMarks == null, own.data?.evaluation);
 
+  // ── Results ──
+  check("Student cannot compute results", (await stu.req("POST", `/api/v1/offerings/${py.id}/results/compute`)).status === 403);
+  check("Other faculty cannot compute results", (await fac1.req("POST", `/api/v1/offerings/${py.id}/results/compute`)).status === 403);
+  const comp = await fac.req("POST", `/api/v1/offerings/${py.id}/results/compute`);
+  check("Faculty computes draft results", comp.status === 200 && comp.data.students > 0, comp);
+  const res = await fac.req("GET", `/api/v1/offerings/${py.id}/results`);
+  const ranks = (res.data?.stored ?? []).map((r: { rank: number }) => r.rank);
+  check("Ranks start at 1 and never decrease", ranks[0] === 1 && ranks.every((r: number, i: number) => i === 0 || r >= ranks[i - 1]), ranks);
+  const pdf = await fetch(`${BASE}/api/v1/offerings/${py.id}/results/export?format=pdf`, { headers: { cookie: fac.cookie } });
+  check("PDF export", pdf.status === 200 && (pdf.headers.get("content-type") ?? "").includes("pdf"));
+  check("Viva marks out of range rejected", (await fac.req("PUT", `/api/v1/offerings/${py.id}/viva`, { marks: [{ studentId: "x", viva: 150 }] })).status === 422);
+
+  // ── Admin ──
+  check("Faculty blocked from admin users", (await fac.req("GET", "/api/v1/admin/users")).status === 403);
+  const hod = new Client(); await hod.login("hod@vlab.demo");
+  check("HOD cannot create a super admin", (await hod.req("POST", "/api/v1/admin/users", { name: "X Y", email: `x${Date.now()}@ex.edu`, role: "SUPER_ADMIN" })).status === 403);
+  check("Grading weights must total 100", (await hod.req("PUT", "/api/v1/admin/grading", { name: "Bad", weights: { experiments: 50, project: 25, viva: 10, attendance: 10 }, bands: [{ grade: "P", min: 40, points: 4 }, { grade: "F", min: 0, points: 0 }], passPercent: 40, minAttendancePercent: 75, tieBreak: ["weightedScore"] })).status === 422);
+  check("Only super admin edits settings", (await hod.req("PUT", "/api/v1/admin/settings", { key: "examRules", value: { defaultSessionMinutes: 120, autosaveSeconds: 15, allowLateByDefault: false, maxRunsPerMinute: 20 } })).status === 403);
+
+  // ── Projects ──
+  check("Unknown project → 404", (await stu.req("POST", "/api/v1/projects/start", { offeringId: py.id, projectId: "does-not-exist" })).status === 404);
+  check("Student cannot evaluate a project", (await stu.req("POST", "/api/v1/projects/teams/x/evaluate", { evaluation: {} })).status === 403);
+
   console.log(fails ? `\n${fails} FAILED` : "\nALL PASSED");
   process.exit(fails ? 1 : 0);
 })();

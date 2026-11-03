@@ -9,6 +9,8 @@ const nextConfig = {
   output: "standalone",
   poweredByHeader: false,
   serverExternalPackages: ["pdfkit", "exceljs", "bcryptjs"],
+  // pdfkit reads its font metrics from disk at runtime; make sure standalone output ships them.
+  outputFileTracingIncludes: { "/api/v1/offerings/[id]/results/[action]": ["./node_modules/pdfkit/js/data/**/*"] },
   async headers() {
     return [{ source: "/(.*)", headers: securityHeaders }];
   },

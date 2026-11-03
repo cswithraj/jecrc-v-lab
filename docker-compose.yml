@@ -1,0 +1,82 @@
+# JECRC VLab — production-style stack: PostgreSQL, migrations, web app, code runner, Nginx.
+# Usage: cp .env.docker.example .env.docker && edit secrets, then: docker compose --env-file .env.docker up -d --build
+name: jecrc-vlab
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-vlab}
+      POSTGRES_USER: ${POSTGRES_USER:-vlab}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-vlab} -d ${POSTGRES_DB:-vlab}"]
+      interval: 5s
+      retries: 20
+    networks: [backend]
+
+  migrate:
+    build: { context: ., target: migrate }
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-vlab}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-vlab}?schema=public
+      SEED_DEMO: ${SEED_DEMO:-false}
+    depends_on: { db: { condition: service_healthy } }
+    networks: [backend]
+    restart: "no"
+
+  runner:
+    build: { context: ., dockerfile: services/runner/Dockerfile }
+    restart: unless-stopped
+    environment:
+      RUNNER_SECRET: ${RUNNER_SECRET:?set RUNNER_SECRET}
+      RUNNER_CONCURRENCY: ${RUNNER_CONCURRENCY:-4}
+    # No internet: the runner sits only on an internal network that the web app can reach.
+    networks: [sandbox]
+    cap_drop: [ALL]
+    cap_add: [SETUID, SETGID, KILL, CHOWN, DAC_OVERRIDE, FOWNER]
+    security_opt: ["no-new-privileges:true"]
+    pids_limit: 512
+    mem_limit: ${RUNNER_MEM_LIMIT:-2g}
+    cpus: ${RUNNER_CPUS:-2}
+    tmpfs: ["/tmp:size=768m,mode=1777,exec"]
+    read_only: true
+
+  web:
+    build: { context: ., target: web }
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-vlab}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-vlab}?schema=public
+      APP_URL: ${APP_URL:?set APP_URL, e.g. https://vlab.jecrcu.edu.in}
+      COOKIE_SECURE: ${COOKIE_SECURE:-true}
+      SESSION_TTL_HOURS: ${SESSION_TTL_HOURS:-12}
+      EXECUTION_PROVIDER: runner
+      RUNNER_URL: http://runner:4100
+      RUNNER_SECRET: ${RUNNER_SECRET}
+      STORAGE_DRIVER: local
+      STORAGE_DIR: /app/storage
+      MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-20}
+    volumes: [uploads:/app/storage]
+    depends_on:
+      db: { condition: service_healthy }
+      migrate: { condition: service_completed_successfully }
+      runner: { condition: service_started }
+    networks: [backend, sandbox, frontend]
+
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    ports: ["${HTTP_PORT:-80}:80"]
+    volumes: ["./deploy/nginx/vlab.conf:/etc/nginx/conf.d/default.conf:ro"]
+    depends_on: [web]
+    networks: [frontend]
+
+networks:
+  frontend: {}
+  backend: { internal: true }
+  sandbox: { internal: true }
+
+volumes:
+  pgdata: {}
+  uploads: {}
