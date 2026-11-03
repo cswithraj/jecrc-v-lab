@@ -1,0 +1,774 @@
+// JECRC VLab — relational schema (PostgreSQL)
+// Conventions: cuid string PKs, createdAt/updatedAt on mutable entities,
+// soft "isActive"/"status" flags instead of hard deletes for academic records.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ───────────────────────────── Identity & access ─────────────────────────────
+
+enum Role {
+  SUPER_ADMIN
+  HOD
+  FACULTY
+  STUDENT
+}
+
+model User {
+  id               String      @id @default(cuid())
+  email            String      @unique
+  passwordHash     String
+  name             String
+  role             Role
+  enrollmentNo     String?     @unique // students only
+  employeeId       String?     @unique // staff only
+  phone            String?
+  avatarUrl        String?
+  isActive         Boolean     @default(true)
+  isDemo           Boolean     @default(false) // demo data marker
+  departmentId     String?
+  department       Department? @relation(fields: [departmentId], references: [id])
+  batchId          String? // students: home batch
+  batch            Batch?      @relation(fields: [batchId], references: [id])
+  extraTimeMinutes Int         @default(0) // accessibility accommodation, authorised by faculty/admin
+  lastLoginAt      DateTime?
+  failedLogins     Int         @default(0)
+  lockedUntil      DateTime?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  sessions            AuthSession[]
+  enrollments         StudentEnrollment[]
+  teaching            SubjectFaculty[]
+  submissions         Submission[]        @relation("SubmissionStudent")
+  attempts            SubmissionAttempt[]
+  drafts              CodeDraft[]
+  attendance          Attendance[]
+  notifications       Notification[]
+  auditLogs           AuditLog[]          @relation("AuditActor")
+  feedbackGiven       FacultyFeedback[]   @relation("FeedbackAuthor")
+  teamMemberships     ProjectTeamMember[]
+  finalResults        FinalResult[]
+  extensionsReceived  SessionExtension[]  @relation("ExtensionStudent")
+  extensionsGranted   SessionExtension[]  @relation("ExtensionGrantor")
+  sessionsConducted   PracticalSession[]  @relation("SessionFaculty")
+  experimentsAuthored Experiment[]        @relation("ExperimentAuthor")
+  markOverrides       MarkOverride[]
+
+  @@index([role])
+  @@index([departmentId])
+  @@index([batchId])
+}
+
+model AuthSession {
+  id         String   @id // sha256 of the opaque token; raw token only in the cookie
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  lastSeenAt DateTime @default(now())
+  ipAddress  String?
+  userAgent  String?
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+// ───────────────────────────── Academic structure ─────────────────────────────
+
+model Department {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  name      String
+  hodId     String?  @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  courses  Course[]
+  subjects Subject[]
+  users    User[]
+}
+
+model Course {
+  id           String     @id @default(cuid())
+  code         String     @unique // e.g. BCA, MCA, BTECH-CSE
+  name         String
+  durationSem  Int        @default(6)
+  departmentId String
+  department   Department @relation(fields: [departmentId], references: [id])
+  semesters    Semester[]
+  batches      Batch[]
+  createdAt    DateTime   @default(now())
+}
+
+model Semester {
+  id       String    @id @default(cuid())
+  courseId String
+  course   Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  number   Int
+  subjects Subject[]
+  batches  Batch[]
+
+  @@unique([courseId, number])
+}
+
+model AcademicSession {
+  id        String            @id @default(cuid())
+  name      String            @unique // e.g. "2026-27 Odd"
+  startDate DateTime
+  endDate   DateTime
+  isCurrent Boolean           @default(false)
+  batches   Batch[]
+  offerings SubjectOffering[]
+}
+
+model Batch {
+  id                String            @id @default(cuid())
+  code              String            @unique // e.g. BCA-2025-A
+  name              String
+  courseId          String
+  course            Course            @relation(fields: [courseId], references: [id])
+  semesterId        String?
+  semester          Semester?         @relation(fields: [semesterId], references: [id])
+  academicSessionId String
+  academicSession   AcademicSession   @relation(fields: [academicSessionId], references: [id])
+  students          User[]
+  offerings         SubjectOffering[]
+  createdAt         DateTime          @default(now())
+
+  @@index([courseId])
+}
+
+// ───────────────────────────── Laboratories ─────────────────────────────
+
+enum Language {
+  C
+  CPP
+  JAVA
+  PYTHON
+  JAVASCRIPT
+  HTML
+  CSS
+  SQL
+  SHELL
+  NONE // theory / communication / simulation-only experiments
+}
+
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+enum Environment {
+  CODE // standard compile/run + test cases
+  WEB // live HTML/CSS/JS preview
+  SQL // SQL sandbox
+  SHELL // Linux shell (OS lab)
+  NETWORK // network simulation
+  DSA_VISUAL // algorithm visualiser
+  NOTEBOOK // notebook-style python cells
+  ANDROID // browser-based UI simulation
+  WRITTEN // written/recorded response (communication lab, prompt eng.)
+}
+
+model Subject {
+  id                  String      @id @default(cuid())
+  code                String      @unique // e.g. CA-CPP-LAB
+  slug                String      @unique
+  name                String
+  shortName           String
+  description         String
+  icon                String      @default("code")
+  color               String      @default("#1d4ed8")
+  credits             Int         @default(1) // configured per subject by admin
+  requiredExperiments Int         @default(15) // derived default = credits*15, overridable
+  hoursPerWeek        Int         @default(4)
+  sessionMinutes      Int         @default(120)
+  defaultLanguage     Language    @default(C)
+  languages           Language[]
+  defaultEnvironment  Environment @default(CODE)
+  easyTarget          Int         @default(0) // faculty-configured mix per difficulty
+  mediumTarget        Int         @default(0)
+  hardTarget          Int         @default(0)
+  isActive            Boolean     @default(true)
+  departmentId        String
+  department          Department  @relation(fields: [departmentId], references: [id])
+  semesterId          String?
+  semester            Semester?   @relation(fields: [semesterId], references: [id])
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+
+  experiments Experiment[]
+  topics      ExperimentTopic[]
+  faculty     SubjectFaculty[]
+  offerings   SubjectOffering[]
+  projects    Project[]
+}
+
+model SubjectFaculty {
+  subjectId     String
+  subject       Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  userId        String
+  user          User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  isCoordinator Boolean @default(false)
+
+  @@id([subjectId, userId])
+}
+
+// A subject taught to a batch in an academic session (the "class").
+model SubjectOffering {
+  id                  String          @id @default(cuid())
+  subjectId           String
+  subject             Subject         @relation(fields: [subjectId], references: [id])
+  batchId             String
+  batch               Batch           @relation(fields: [batchId], references: [id])
+  academicSessionId   String
+  academicSession     AcademicSession @relation(fields: [academicSessionId], references: [id])
+  facultyId           String?
+  requiredExperiments Int? // override of Subject.requiredExperiments for this class
+  resultsFinalized    Boolean         @default(false)
+  createdAt           DateTime        @default(now())
+
+  enrollments StudentEnrollment[]
+  schedules   LabSchedule[]
+  sessions    PracticalSession[]
+  results     FinalResult[]
+  teams       ProjectTeam[]
+
+  @@unique([subjectId, batchId, academicSessionId])
+}
+
+model StudentEnrollment {
+  id         String          @id @default(cuid())
+  offeringId String
+  offering   SubjectOffering @relation(fields: [offeringId], references: [id], onDelete: Cascade)
+  studentId  String
+  student    User            @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  status     String          @default("ACTIVE") // ACTIVE | DROPPED
+  vivaMarks  Float?          // end-of-lab viva, out of 100, entered by faculty
+  createdAt  DateTime        @default(now())
+
+  @@unique([offeringId, studentId])
+  @@index([studentId])
+}
+
+model ExperimentTopic {
+  id          String       @id @default(cuid())
+  subjectId   String
+  subject     Subject      @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  name        String
+  experiments Experiment[]
+
+  @@unique([subjectId, name])
+}
+
+enum PublishStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+model Experiment {
+  id               String           @id @default(cuid())
+  code             String           @unique // e.g. CPP-EXP-07
+  subjectId        String
+  subject          Subject          @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  number           Int
+  title            String
+  difficulty       Difficulty
+  estimatedMinutes Int              @default(120)
+  topicId          String?
+  topic            ExperimentTopic? @relation(fields: [topicId], references: [id])
+  language         Language
+  environment      Environment      @default(CODE)
+  objectives       String[]
+  courseOutcomes   String[] // e.g. ["CO1","CO3"]
+  learningOutcome  String?
+  // Theory, stored as structured JSON: {introduction, definition, concepts[], terminology[{term,meaning}], working, applications[], examples}
+  theory           Json
+  problemStatement String
+  algorithm        String[]
+  pseudocode       String?
+  flowchart        String? // Mermaid source (rendered client-side; editable by faculty)
+  flowchartImage   String? // optional uploaded image URL
+  starterCode      String?
+  referenceCode    String? // never sent to students unless showSolution
+  codeExplanation  String?
+  sampleInput      String?
+  sampleOutput     String?
+  conclusion       String?
+  showSolution     Boolean          @default(false)
+  // Rubric (sums to maxMarks). Auto = correctness+compilation+submission; others faculty-judged.
+  rubric           Json
+  maxMarks         Int              @default(100)
+  timeLimitMs      Int              @default(2000)
+  memoryLimitKb    Int              @default(131072)
+  status           PublishStatus    @default(DRAFT)
+  version          Int              @default(1)
+  isDemo           Boolean          @default(false)
+  authorId         String?
+  author           User?            @relation("ExperimentAuthor", fields: [authorId], references: [id])
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  testCases   TestCase[]
+  vivaQs      VivaQuestion[]
+  resources   ExperimentResource[]
+  versions    ExperimentVersion[]
+  sessions    PracticalSession[]
+  submissions Submission[]
+  attempts    SubmissionAttempt[]
+  drafts      CodeDraft[]
+
+  @@unique([subjectId, number])
+  @@index([subjectId, difficulty])
+  @@index([status])
+}
+
+model ExperimentVersion {
+  id           String     @id @default(cuid())
+  experimentId String
+  experiment   Experiment @relation(fields: [experimentId], references: [id], onDelete: Cascade)
+  version      Int
+  snapshot     Json
+  editedById   String?
+  createdAt    DateTime   @default(now())
+
+  @@unique([experimentId, version])
+}
+
+model ExperimentResource {
+  id           String     @id @default(cuid())
+  experimentId String
+  experiment   Experiment @relation(fields: [experimentId], references: [id], onDelete: Cascade)
+  kind         String // IMAGE | DIAGRAM | DOCUMENT | LINK
+  title        String
+  url          String
+  createdAt    DateTime   @default(now())
+}
+
+model TestCase {
+  id           String     @id @default(cuid())
+  experimentId String
+  experiment   Experiment @relation(fields: [experimentId], references: [id], onDelete: Cascade)
+  input        String
+  expected     String
+  isHidden     Boolean    @default(false)
+  weight       Int        @default(1)
+  order        Int        @default(0)
+  // Comparison mode: EXACT | TRIM (ignore trailing ws per line) | TOKENS (whitespace-insensitive) | FLOAT (1e-6)
+  compareMode  String     @default("TRIM")
+}
+
+model VivaQuestion {
+  id           String     @id @default(cuid())
+  experimentId String
+  experiment   Experiment @relation(fields: [experimentId], references: [id], onDelete: Cascade)
+  question     String
+  answer       String?
+  order        Int        @default(0)
+}
+
+// ───────────────────────────── Scheduling & sessions ─────────────────────────────
+
+model LabSchedule {
+  id          String          @id @default(cuid())
+  offeringId  String
+  offering    SubjectOffering @relation(fields: [offeringId], references: [id], onDelete: Cascade)
+  weekday     Int // 0=Sun … 6=Sat
+  startTime   String // "10:00" local (Asia/Kolkata)
+  durationMin Int             @default(120)
+  room        String?
+}
+
+enum SessionStatus {
+  SCHEDULED
+  LIVE
+  ENDED
+  CANCELLED
+}
+
+model PracticalSession {
+  id             String          @id @default(cuid())
+  offeringId     String
+  offering       SubjectOffering @relation(fields: [offeringId], references: [id], onDelete: Cascade)
+  experimentId   String
+  experiment     Experiment      @relation(fields: [experimentId], references: [id])
+  sequence       Int // practical #1..N within the offering
+  scheduledStart DateTime
+  durationMin    Int             @default(120)
+  status         SessionStatus   @default(SCHEDULED)
+  startedAt      DateTime? // server time when faculty started — authoritative
+  endsAt         DateTime? // startedAt + duration (+ global extension)
+  endedAt        DateTime?
+  conductedById  String?
+  conductedBy    User?           @relation("SessionFaculty", fields: [conductedById], references: [id])
+  isAssessment   Boolean         @default(true) // restricted: hides reference solution
+  marksReleaseAt DateTime? // students see marks after this
+  allowLate      Boolean         @default(false)
+  createdAt      DateTime        @default(now())
+
+  attendance  Attendance[]
+  extensions  SessionExtension[]
+  submissions Submission[]
+
+  @@unique([offeringId, sequence])
+  @@index([status])
+  @@index([scheduledStart])
+}
+
+model SessionExtension {
+  id          String           @id @default(cuid())
+  sessionId   String
+  session     PracticalSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  studentId   String
+  student     User             @relation("ExtensionStudent", fields: [studentId], references: [id])
+  minutes     Int
+  reason      String
+  grantedById String
+  grantedBy   User             @relation("ExtensionGrantor", fields: [grantedById], references: [id])
+  createdAt   DateTime         @default(now())
+
+  @@index([sessionId, studentId])
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  EXCUSED
+}
+
+model Attendance {
+  id        String           @id @default(cuid())
+  sessionId String
+  session   PracticalSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  studentId String
+  student   User             @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  status    AttendanceStatus
+  markedAt  DateTime         @default(now())
+  source    String           @default("AUTO") // AUTO (joined session) | MANUAL
+
+  @@unique([sessionId, studentId])
+}
+
+// ───────────────────────────── Code & submissions ─────────────────────────────
+
+model CodeDraft {
+  id           String     @id @default(cuid())
+  studentId    String
+  student      User       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  experimentId String
+  experiment   Experiment @relation(fields: [experimentId], references: [id], onDelete: Cascade)
+  language     Language
+  code         String
+  updatedAt    DateTime   @updatedAt
+
+  @@unique([studentId, experimentId, language])
+}
+
+enum AttemptKind {
+  RUN // custom input run
+  TEST // public test cases
+  SUBMIT // graded submission (public + hidden)
+}
+
+enum Verdict {
+  ACCEPTED
+  WRONG_ANSWER
+  COMPILATION_ERROR
+  RUNTIME_ERROR
+  TIME_LIMIT_EXCEEDED
+  MEMORY_LIMIT_EXCEEDED
+  OUTPUT_LIMIT_EXCEEDED
+  PARTIAL
+  INTERNAL_ERROR
+  PENDING
+  MANUAL_REVIEW
+}
+
+model SubmissionAttempt {
+  id            String      @id @default(cuid())
+  studentId     String
+  student       User        @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  experimentId  String
+  experiment    Experiment  @relation(fields: [experimentId], references: [id], onDelete: Cascade)
+  submissionId  String?
+  submission    Submission? @relation(fields: [submissionId], references: [id])
+  kind          AttemptKind
+  language      Language
+  code          String // preserved exactly as received
+  stdin         String?
+  verdict       Verdict     @default(PENDING)
+  stdout        String?
+  stderr        String?
+  compileOutput String?
+  timeMs        Int?
+  memoryKb      Int?
+  testsPassed   Int         @default(0)
+  testsTotal    Int         @default(0)
+  details       Json? // per-test results (hidden tests redacted when shown to students)
+  createdAt     DateTime    @default(now())
+
+  @@index([studentId, experimentId])
+  @@index([createdAt])
+}
+
+enum SubmissionStatus {
+  SUBMITTED
+  EVALUATED
+  FINALIZED // faculty reviewed & locked
+  REOPENED
+}
+
+// One graded submission per (student, session). Practice submissions (no session) allowed multiple times.
+model Submission {
+  id           String            @id @default(cuid())
+  studentId    String
+  student      User              @relation("SubmissionStudent", fields: [studentId], references: [id], onDelete: Cascade)
+  experimentId String
+  experiment   Experiment        @relation(fields: [experimentId], references: [id], onDelete: Cascade)
+  sessionId    String?
+  session      PracticalSession? @relation(fields: [sessionId], references: [id])
+  language     Language
+  code         String // original, immutable
+  submittedAt  DateTime          @default(now()) // server timestamp
+  isLate       Boolean           @default(false)
+  status       SubmissionStatus  @default(SUBMITTED)
+  reopenCount  Int               @default(0)
+
+  attempts   SubmissionAttempt[]
+  evaluation EvaluationResult?
+  feedback   FacultyFeedback[]
+
+  @@unique([studentId, sessionId])
+  @@index([experimentId])
+}
+
+model EvaluationResult {
+  id           String     @id @default(cuid())
+  submissionId String     @unique
+  submission   Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  verdict      Verdict
+  testsPassed  Int
+  testsTotal   Int
+  weightPassed Int
+  weightTotal  Int
+  timeMs       Int?
+  memoryKb     Int?
+  // Rubric component marks: {correctness, compilation, submission, logic, quality, efficiency} with nulls for pending faculty items
+  components   Json
+  autoMarks    Float // sum of automatically assessed components
+  manualMarks  Float? // sum of faculty-assessed components (null until reviewed)
+  totalMarks   Float // auto + manual (+ override)
+  maxMarks     Int
+  reviewedById String?
+  reviewedAt   DateTime?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  overrides MarkOverride[]
+}
+
+model MarkOverride {
+  id           String           @id @default(cuid())
+  evaluationId String
+  evaluation   EvaluationResult @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
+  component    String
+  oldValue     Float?
+  newValue     Float
+  reason       String
+  actorId      String
+  actor        User             @relation(fields: [actorId], references: [id])
+  createdAt    DateTime         @default(now())
+}
+
+model FacultyFeedback {
+  id           String     @id @default(cuid())
+  submissionId String
+  submission   Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  authorId     String
+  author       User       @relation("FeedbackAuthor", fields: [authorId], references: [id])
+  comment      String
+  createdAt    DateTime   @default(now())
+}
+
+// ───────────────────────────── Final projects ─────────────────────────────
+
+model Project {
+  id               String    @id @default(cuid())
+  subjectId        String
+  subject          Subject   @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  title            String
+  problemStatement String
+  objectives       String[]
+  requirements     String[]
+  isGroup          Boolean   @default(false)
+  maxTeamSize      Int       @default(1)
+  // Evaluation weights in % : {understanding, design, implementation, testing, documentation, viva}
+  rubric           Json
+  maxMarks         Int       @default(100)
+  dueDate          DateTime?
+  isActive         Boolean   @default(true)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  milestones ProjectMilestone[]
+  teams      ProjectTeam[]
+}
+
+model ProjectMilestone {
+  id          String              @id @default(cuid())
+  projectId   String
+  project     Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  dueDate     DateTime?
+  order       Int                 @default(0)
+  submissions ProjectSubmission[]
+}
+
+model ProjectTeam {
+  id            String          @id @default(cuid())
+  projectId     String
+  project       Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  offeringId    String
+  offering      SubjectOffering @relation(fields: [offeringId], references: [id], onDelete: Cascade)
+  name          String
+  status        String          @default("IN_PROGRESS") // IN_PROGRESS | SUBMITTED | EVALUATED
+  // Evaluation component marks (percent-of-weight scale) and totals
+  evaluation    Json?
+  marks         Float?
+  vivaMarks     Float?
+  evaluatedById String?
+  evaluatedAt   DateTime?
+  createdAt     DateTime        @default(now())
+
+  members     ProjectTeamMember[]
+  submissions ProjectSubmission[]
+}
+
+model ProjectTeamMember {
+  teamId    String
+  team      ProjectTeam @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  studentId String
+  student   User        @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  isLeader  Boolean     @default(false)
+
+  @@id([teamId, studentId])
+  @@index([studentId])
+}
+
+model ProjectSubmission {
+  id            String            @id @default(cuid())
+  teamId        String
+  team          ProjectTeam       @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  milestoneId   String?
+  milestone     ProjectMilestone? @relation(fields: [milestoneId], references: [id])
+  kind          String // REPO | DOCUMENT | DEMO | NOTE
+  url           String?
+  fileKey       String?
+  fileName      String?
+  notes         String?
+  submittedById String
+  createdAt     DateTime          @default(now())
+}
+
+// ───────────────────────────── Results ─────────────────────────────
+
+model GradingPolicy {
+  id                   String   @id @default(cuid())
+  name                 String   @unique
+  isDefault            Boolean  @default(false)
+  // Weights (%) of final score: {experiments, project, viva, attendance}
+  weights              Json
+  // Grade bands, descending: [{grade:"O", min:90, points:10}, ...]
+  bands                Json
+  passPercent          Float    @default(40)
+  minAttendancePercent Float    @default(75)
+  // Tie-break order, e.g. ["score","experimentAvg","project","attendance","name"]
+  tieBreak             String[]
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+}
+
+enum ResultStatus {
+  DRAFT
+  FINALIZED
+}
+
+model FinalResult {
+  id                  String          @id @default(cuid())
+  offeringId          String
+  offering            SubjectOffering @relation(fields: [offeringId], references: [id], onDelete: Cascade)
+  studentId           String
+  student             User            @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  experimentsDone     Int
+  experimentsRequired Int
+  experimentTotal     Float
+  experimentAvg       Float
+  attendancePercent   Float
+  projectMarks        Float?
+  vivaMarks           Float?
+  weightedScore       Float
+  grade               String
+  gradePoints         Float
+  outcome             String // PASS | FAIL | INCOMPLETE | DETAINED
+  rank                Int?
+  status              ResultStatus    @default(DRAFT)
+  policyId            String?
+  computedAt          DateTime        @default(now())
+  finalizedById       String?
+  finalizedAt         DateTime?
+
+  @@unique([offeringId, studentId])
+  @@index([offeringId, rank])
+}
+
+// ───────────────────────────── Cross-cutting ─────────────────────────────
+
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String // SESSION_UPCOMING | ASSIGNMENT | DEADLINE | MARKS_RELEASED | MISSED_SESSION | PROJECT_DEADLINE | ANNOUNCEMENT | RESULT_PUBLISHED
+  title     String
+  body      String
+  link      String?
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, readAt])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?
+  actor      User?    @relation("AuditActor", fields: [actorId], references: [id])
+  action     String // e.g. MARKS_OVERRIDE, USER_CREATE, RESULT_FINALIZE
+  entityType String
+  entityId   String?
+  before     Json?
+  after      Json?
+  reason     String?
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([actorId])
+  @@index([createdAt])
+}
+
+// Key/value institutional configuration (branding, academic year, exam rules)
+model Setting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+}

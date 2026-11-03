@@ -1,0 +1,64 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* JECRC University theme — crest red on white, black serif wordmark. */
+@layer base {
+  :root {
+    --background: 0 0% 99%;
+    --foreground: 0 0% 9%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 9%;
+    --primary: 357 95% 46%; /* JECRC red #E30613 */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 12%; /* wordmark black */
+    --secondary-foreground: 0 0% 98%;
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 40%;
+    --accent: 357 100% 97%;
+    --accent-foreground: 357 80% 32%;
+    --destructive: 0 72% 45%;
+    --destructive-foreground: 0 0% 100%;
+    --success: 152 60% 34%;
+    --warning: 36 92% 42%;
+    --border: 0 0% 89%;
+    --input: 0 0% 85%;
+    --ring: 357 95% 46%;
+  }
+  .dark {
+    --background: 0 0% 6%;
+    --foreground: 0 0% 94%;
+    --card: 0 0% 9%;
+    --card-foreground: 0 0% 94%;
+    --primary: 357 85% 55%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 92%;
+    --secondary-foreground: 0 0% 8%;
+    --muted: 0 0% 14%;
+    --muted-foreground: 0 0% 64%;
+    --accent: 357 40% 16%;
+    --accent-foreground: 357 90% 82%;
+    --destructive: 0 70% 55%;
+    --destructive-foreground: 0 0% 100%;
+    --success: 152 55% 48%;
+    --warning: 38 92% 55%;
+    --border: 0 0% 20%;
+    --input: 0 0% 24%;
+    --ring: 357 85% 55%;
+  }
+  * { @apply border-border; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { @apply bg-background text-foreground antialiased; font-feature-settings: "cv11", "ss01"; }
+  h1, h2, h3 { letter-spacing: -0.01em; }
+  :focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 2px; }
+}
+
+@layer components {
+  .font-display { font-family: var(--font-display), Georgia, serif; }
+  .prose-lab { @apply text-[15px] leading-7 text-foreground; }
+  .prose-lab p { @apply my-2; }
+  .prose-lab ul { @apply my-2 list-disc pl-6; }
+  .prose-lab ol { @apply my-2 list-decimal pl-6; }
+  .code-block { @apply overflow-x-auto rounded-md border bg-muted/60 p-4 font-mono text-[13px] leading-6; }
+  .stripe { background-image: linear-gradient(90deg, hsl(var(--primary)) 0 6px, transparent 6px); }
+}
