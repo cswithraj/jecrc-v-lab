@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { route, parseBody, notFound } from "@/lib/api";
+import { releaseMarks } from "@/lib/services/review";
 import { startSession, endSession, extendSession, reopenSubmission, monitor, joinSession, studentSessionStatus } from "@/lib/services/sessions";
 
 type P = { id: string; action: string };
@@ -7,7 +8,7 @@ const Extend = z.object({ studentId: z.string().optional(), minutes: z.number().
 const Reopen = z.object({ studentId: z.string(), reason: z.string().trim().min(3).max(500) });
 
 /**
- * POST /api/v1/sessions/:id/start | end | extend | reopen  (staff)
+ * POST /api/v1/sessions/:id/start | end | extend | reopen | release  (staff)
  * POST /api/v1/sessions/:id/join                          (student, records attendance)
  */
 export const POST = route<P>({}, async (req, { user, params }) => {
@@ -18,6 +19,7 @@ export const POST = route<P>({}, async (req, { user, params }) => {
     case "end": if (staff) return endSession(user, params.id); break;
     case "extend": if (staff) return extendSession(user, params.id, await parseBody(req, Extend)); break;
     case "reopen": if (staff) return reopenSubmission(user, params.id, await parseBody(req, Reopen)); break;
+    case "release": if (staff) return releaseMarks(user, params.id); break;
   }
   throw notFound("Unknown action.");
 });

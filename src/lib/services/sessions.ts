@@ -30,7 +30,7 @@ export async function studentSessionStatus(user: SessionUser, id: string) {
   return {
     status: s.status, serverNow: now.toISOString(), startedAt: s.startedAt, deadline, extensionMinutes: ext, extraTimeMinutes: user.extraTimeMinutes,
     remainingMs: s.status === "LIVE" ? remainingMs(deadline, now) : 0, open: open || (s.status === "LIVE" && s.allowLate), allowLate: s.allowLate,
-    submission: sub, canSubmit: (!sub || sub.status === "REOPENED") && (open || (s.status === "LIVE" && s.allowLate) || sub?.status === "REOPENED"),
+    submission: sub, canSubmit: sub?.status === "REOPENED" || (!sub && (open || (s.status === "LIVE" && s.allowLate))),
   };
 }
 

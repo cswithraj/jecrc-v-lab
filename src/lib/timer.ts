@@ -21,6 +21,8 @@ export type SubmitWindow = { allowed: true; late: boolean } | { allowed: false; 
 export function canSubmit(s: SessionTiming, deadline: Date | null, now: Date, allowLate: boolean): SubmitWindow {
   if (s.status === "CANCELLED") return { allowed: false, reason: "This practical session was cancelled." };
   if (s.status === "SCHEDULED" || !s.startedAt) return { allowed: false, reason: "The practical session has not been started by faculty yet." };
+  // Once faculty end the session it is closed for everyone (reopened submissions are handled separately).
+  if (s.status === "ENDED") return { allowed: false, reason: "This practical session has ended. Submissions are closed." };
   if (!deadline) return { allowed: false, reason: "Session has no deadline configured." };
   const over = now.getTime() > deadline.getTime() + SUBMIT_GRACE_MS;
   if (!over) return { allowed: true, late: false };
