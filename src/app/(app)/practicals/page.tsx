@@ -9,9 +9,9 @@ import { fmtDateTime } from "@/lib/utils";
 export const metadata = { title: "Practical sessions" };
 const TONE = { LIVE: "default", SCHEDULED: "secondary", ENDED: "outline", CANCELLED: "destructive" } as const;
 
-export default async function PracticalsPage({ searchParams }: { searchParams: Promise<{ show?: string }> }) {
+export default async function PracticalsPage({ searchParams }: { searchParams: Promise<{ show?: string; offering?: string }> }) {
   const user = await requireUser();
-  const { show } = await searchParams;
+  const { show, offering } = await searchParams;
   const staff = user.role !== "STUDENT";
   const offerings = staff ? await managedOfferings(user) : [];
   const offeringIds = staff ? offerings.map((o) => o.id) : (await prisma.studentEnrollment.findMany({ where: { studentId: user.id }, select: { offeringId: true } })).map((e) => e.offeringId);
@@ -29,7 +29,7 @@ export default async function PracticalsPage({ searchParams }: { searchParams: P
       {staff && (
         <Card className="mb-6">
           <CardHeader><CardTitle>Schedule a practical</CardTitle></CardHeader>
-          <CardContent><ScheduleForm offerings={offerings.map((o) => ({ id: o.id, label: `${o.subject.shortName} · ${o.batch.code}`, experiments: pubExps.filter((e) => e.subjectId === o.subject.id).map((e) => ({ id: e.id, label: `#${e.number} ${e.title}` })) }))} /></CardContent>
+          <CardContent><ScheduleForm defaultOffering={offering} offerings={offerings.map((o) => ({ id: o.id, label: `${o.subject.shortName} · ${o.batch.code}`, experiments: pubExps.filter((e) => e.subjectId === o.subject.id).map((e) => ({ id: e.id, label: `#${e.number} ${e.title}` })) }))} /></CardContent>
         </Card>
       )}
       <div className="mb-3 flex gap-2 text-sm">

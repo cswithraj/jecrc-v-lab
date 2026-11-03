@@ -3,9 +3,9 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button, Field, Select, Input, Alert } from "@/components/ui";
 
-export function ScheduleForm({ offerings }: { offerings: { id: string; label: string; experiments: { id: string; label: string }[] }[] }) {
+export function ScheduleForm({ offerings, defaultOffering }: { defaultOffering?: string; offerings: { id: string; label: string; experiments: { id: string; label: string }[] }[] }) {
   const router = useRouter();
-  const [offeringId, setOfferingId] = useState(offerings[0]?.id ?? "");
+  const [offeringId, setOfferingId] = useState(offerings.find((o) => o.id === defaultOffering)?.id ?? offerings[0]?.id ?? "");
   const exps = offerings.find((o) => o.id === offeringId)?.experiments ?? [];
   const [experimentId, setExperimentId] = useState("");
   const [start, setStart] = useState("");
