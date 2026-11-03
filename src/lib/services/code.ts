@@ -156,3 +156,13 @@ export async function submit(user: SessionUser, input: { experimentId: string; l
     marks: input.sessionId ? null : { auto: t.autoMarks, pendingFaculty: true, max: exp.maxMarks },
   };
 }
+
+/** Staff: run an (unsaved) reference solution against an (unsaved) set of test cases, all tests visible. */
+export async function validateReference(user: SessionUser, input: { language: Language; code: string; timeLimitMs: number; memoryLimitKb: number; tests: { input: string; expected: string; weight: number; isHidden: boolean; compareMode: string }[] }) {
+  await guardRate(user);
+  if (!input.tests.length) throw badRequest("Add at least one test case first.");
+  const tests = input.tests.map((t, i) => toSpec({ ...t, id: String(i + 1) }));
+  const res = await getExecutionProvider().execute({ language: input.language, source: input.code, inputs: tests.map((t) => t.input), timeLimitMs: input.timeLimitMs, memoryLimitKb: input.memoryLimitKb });
+  const g = gradeRuns(tests, res);
+  return { verdict: g.verdict, compileOk: g.compileOk, compileOutput: g.compileOutput, testsPassed: g.testsPassed, testsTotal: g.testsTotal, tests: g.tests.map((t, i) => ({ ...t, hidden: false, input: tests[i]?.input, expected: tests[i]?.expected })) };
+}
