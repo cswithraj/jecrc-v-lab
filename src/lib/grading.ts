@@ -87,8 +87,8 @@ export function computeResult(s: StudentInputs, p: Policy): ComputedResult {
  * Competition ranking ("1-2-2-4"): sort by the tie-break keys (all descending);
  * students equal on every key share a rank. Order within a tie is alphabetical for display only.
  */
-export function rank<T extends Record<string, unknown> & { name: string }>(rows: T[], tieBreak: string[]): (T & { rank: number })[] {
-  const val = (r: T, k: string) => Number(r[k] ?? -1);
+export function rank<T extends { name: string }>(rows: T[], tieBreak: string[]): (T & { rank: number })[] {
+  const val = (r: T, k: string) => Number((r as Record<string, unknown>)[k] ?? -1);
   const cmp = (a: T, b: T) => {
     for (const k of tieBreak) { const d = val(b, k) - val(a, k); if (Math.abs(d) > 1e-9) return d; }
     return 0;

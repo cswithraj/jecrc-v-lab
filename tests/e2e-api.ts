@@ -1,3 +1,4 @@
+export {};
 // End-to-end API checks against a running app (BASE_URL) with demo seed data and the runner up.
 // Covers: auth, RBAC denials, timed practical submission rules, duplicate prevention, reopen, extension, data isolation.
 const BASE = process.env.BASE_URL || "http://localhost:3000";

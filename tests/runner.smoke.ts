@@ -1,3 +1,4 @@
+export {};
 // Runner smoke + security tests. Run: RUNNER_URL=… RUNNER_SECRET=… npx tsx tests/runner.smoke.ts
 const URL = process.env.RUNNER_URL || "http://localhost:4100";
 const SECRET = process.env.RUNNER_SECRET || "dev-runner-secret-0123456789";

@@ -80,7 +80,7 @@ function runProc(cmd: string[], cwd: string, stdin: string, wallLimitMs: number,
     const child = spawn(cmd[0], cmd.slice(1), {
       cwd,
       detached: true, // own process group so we can kill everything it forks
-      env: { PATH: "/usr/local/bin:/usr/bin:/bin", HOME: cwd, LANG: "C.UTF-8", JAVA_TOOL_OPTIONS: "" },
+      env: { PATH: "/usr/local/bin:/usr/bin:/bin", HOME: cwd, LANG: "C.UTF-8", JAVA_TOOL_OPTIONS: "" } as unknown as NodeJS.ProcessEnv,
       stdio: ["pipe", "pipe", "pipe"],
     });
     let out = Buffer.alloc(0), err = Buffer.alloc(0), killedFor: ProcOut["killedFor"] = null;

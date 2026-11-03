@@ -25,7 +25,7 @@ export function BarChartCard({ data, unit = "", max, height = 260, horizontal = 
               </>
             )}
             <Tooltip cursor={{ fill: "hsl(var(--muted))" }} contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12, color: "hsl(var(--foreground))" }}
-              formatter={(v: number, _n, p) => [`${v}${unit}`, (p?.payload as { hint?: string })?.hint ?? label]} labelStyle={{ fontWeight: 600 }} />
+              formatter={(v, _n, p) => [`${v ?? ""}${unit}`, (p?.payload as { hint?: string })?.hint ?? label]} labelStyle={{ fontWeight: 600 }} />
             <Bar dataKey="value" fill="hsl(var(--primary))" radius={horizontal ? [0, 4, 4, 0] : [4, 4, 0, 0]} maxBarSize={horizontal ? 18 : 28} />
           </BarChart>
         </ResponsiveContainer>

@@ -1,3 +1,4 @@
+export {};
 // Assessment-accuracy check: every published experiment's reference solution must pass
 // all of its own test cases on the real execution backend. Run with the runner up.
 import { PrismaClient } from "@prisma/client";

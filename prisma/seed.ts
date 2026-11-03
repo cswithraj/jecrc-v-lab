@@ -56,7 +56,7 @@ async function main() {
   const fac1 = await mkUser("faculty@vlab.demo", { name: "Prof. Neha Mathur (Demo)", role: "FACULTY", employeeId: "DEMO-FAC-01" });
   const fac2 = await mkUser("faculty2@vlab.demo", { name: "Dr. Vikram Rathore (Demo)", role: "FACULTY", employeeId: "DEMO-FAC-02" });
 
-  const students = [];
+  const students: Awaited<ReturnType<typeof mkUser>>[] = [];
   for (let i = 0; i < 24; i++) {
     const email = i === 0 ? "student@vlab.demo" : `student${String(i + 1).padStart(2, "0")}@vlab.demo`;
     students.push(await mkUser(email, { name: `${FIRST[i]} ${LAST[i % LAST.length]} (Demo)`, role: "STUDENT", enrollmentNo: `DEMO25BCA${String(i + 1).padStart(3, "0")}`, batchId: bcaBatch.id, extraTimeMinutes: i === 5 ? 20 : 0 }));
